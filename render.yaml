@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: agriride-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:///./agriride.db
+      - key: SECRET_KEY
+        value: agriride-super-secret-key-change-in-production-2024
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 1440
+      - key: ALLOWED_ORIGINS
+        value: "*"
+    plan: free
