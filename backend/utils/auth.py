@@ -3,7 +3,7 @@ AgriRide – Authentication utilities.
 Handles password hashing and JWT creation/verification.
 """
 import os
-import bcrypt
+from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -19,17 +19,19 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440
 
 bearer_scheme = HTTPBearer()
 
+# Use passlib for reliable bcrypt hashing (avoids bcrypt 4.x/5.x compatibility issues)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 def hash_password(password: str) -> str:
-    """Hash a plain-text password using bcrypt."""
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+    """Hash a plain-text password using bcrypt via passlib."""
+    return pwd_context.hash(password)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """Verify plain-text against bcrypt hash."""
+    """Verify plain-text against bcrypt hash via passlib."""
     try:
-        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+        return pwd_context.verify(plain, hashed)
     except Exception:
         return False
 
