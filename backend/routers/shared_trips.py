@@ -33,11 +33,13 @@ def get_shared_trips(
         driver = db.query(models.Driver).filter(models.Driver.user_id == current_user.id).first()
         if not driver:
             return []
-        # Trips assigned to this driver OR awaiting a driver
+        # Trips assigned to this driver OR awaiting any driver (MATCHED or DRIVER_ASSIGNED)
         return db.query(models.SharedTrip).filter(
             (models.SharedTrip.driver_id == driver.id) |
-            (models.SharedTrip.status == models.TripStatus.DRIVER_ASSIGNED)
+            (models.SharedTrip.status == models.TripStatus.DRIVER_ASSIGNED) |
+            (models.SharedTrip.status == models.TripStatus.MATCHED)
         ).order_by(models.SharedTrip.created_at.desc()).all()
+
 
     else:  # ADMIN
         return db.query(models.SharedTrip).order_by(models.SharedTrip.created_at.desc()).all()

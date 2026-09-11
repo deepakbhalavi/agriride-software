@@ -12,7 +12,7 @@ export default function AvailableTrips() {
   const load = () => {
     tripAPI.getAll().then(r => {
       const available = r.data.filter(t =>
-        t.status === 'DRIVER_ASSIGNED' || t.status === 'MATCHED' || t.status === 'DRIVER_ACCEPTED' || t.status === 'PICKUP_IN_PROGRESS' || t.status === 'IN_TRANSIT'
+        t.status === 'MATCHED' || t.status === 'DRIVER_ASSIGNED' || t.status === 'DRIVER_ACCEPTED' || t.status === 'PICKUP_IN_PROGRESS' || t.status === 'IN_TRANSIT'
       )
       setTrips(available)
     }).finally(() => setLoading(false))
