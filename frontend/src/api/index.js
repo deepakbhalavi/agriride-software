@@ -4,7 +4,10 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const api = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': '1',  // bypass ngrok interstitial warning page
+  },
 })
 
 // Attach JWT token to every request
