@@ -7,7 +7,9 @@ services:
     startCommand: python -m uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
-        value: sqlite:///./agriride.db
+        sync: false          # Set this in Render dashboard → Environment → DATABASE_URL
+                             # Example (Railway MySQL): mysql+pymysql://user:pass@host:port/db
+                             # Example (fallback SQLite): sqlite:///./agriride.db
       - key: SECRET_KEY
         value: agriride-super-secret-key-change-in-production-2024
       - key: ALGORITHM

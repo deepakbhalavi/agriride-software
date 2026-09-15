@@ -63,7 +63,11 @@ def get_driver_dashboard(
     ]]
     completed_trips = [t for t in trips if t.status == models.TripStatus.DELIVERED]
     pending_trips   = db.query(models.SharedTrip).filter(
-        models.SharedTrip.status == models.TripStatus.DRIVER_ASSIGNED
+        models.SharedTrip.driver_id == None,
+        models.SharedTrip.status.in_([
+            models.TripStatus.MATCHED,
+            models.TripStatus.DRIVER_ASSIGNED
+        ])
     ).all()
 
     total_load_today = sum(t.total_load_kg for t in active_trips)
