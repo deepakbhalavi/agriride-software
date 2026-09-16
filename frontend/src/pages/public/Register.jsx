@@ -42,7 +42,7 @@ export default function Register() {
 
         {error && <div className="alert alert-danger" style={{ marginBottom: 16 }}>⚠️ {error}</div>}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form onSubmit={handleSubmit} autoComplete="off" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="form-group">
             <label className="form-label">I am a...</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -75,25 +75,25 @@ export default function Register() {
             <div className="form-group">
               <label className="form-label">Full Name</label>
               <input id="reg-name" type="text" className="form-input" placeholder="Ramesh Patil"
-                value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required />
+                autoComplete="off" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required />
             </div>
             <div className="form-group">
               <label className="form-label">Phone</label>
               <input id="reg-phone" type="tel" className="form-input" placeholder="9876543210"
-                value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
+                autoComplete="off" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
             </div>
           </div>
 
           <div className="form-group">
             <label className="form-label">Email Address</label>
             <input id="reg-email" type="email" className="form-input" placeholder="you@example.com"
-              value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required />
+              autoComplete="off" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required />
           </div>
 
           <div className="form-group">
             <label className="form-label">Password</label>
             <input id="reg-password" type="password" className="form-input" placeholder="Min 6 characters"
-              value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required />
+              autoComplete="new-password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required />
           </div>
 
           <button type="submit" className="btn btn-primary btn-lg w-full" disabled={loading}>
