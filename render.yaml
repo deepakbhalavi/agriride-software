@@ -5,11 +5,12 @@ services:
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: python -m uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        sync: false          # Set this in Render dashboard → Environment → DATABASE_URL
-                             # Example (Railway MySQL): mysql+pymysql://user:pass@host:port/db
-                             # Example (fallback SQLite): sqlite:///./agriride.db
+        sync: false          # Set in Render dashboard → Environment → DATABASE_URL
+                             # Supabase PostgreSQL format:
+                             # postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
       - key: SECRET_KEY
         value: agriride-super-secret-key-change-in-production-2024
       - key: ALGORITHM
@@ -17,5 +18,5 @@ services:
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: 1440
       - key: ALLOWED_ORIGINS
-        value: "*"
+        value: "https://agriride-software.vercel.app"
     plan: free
