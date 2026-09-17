@@ -1,6 +1,7 @@
 """
-AgriRide – Database configuration using SQLAlchemy.
-Supports SQLite (default), MySQL, and PostgreSQL via connection string.
+AgriRide – Database configuration.
+Uses PostgreSQL on Render (via Render's free PostgreSQL add-on).
+Falls back to SQLite locally for development.
 """
 import os
 from sqlalchemy import create_engine
@@ -11,26 +12,13 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./agriride.db")
 
-# ── Normalise database URL dialects ───────────────────────────────────────────
-# 1. MySQL: Render does NOT have mysqlclient (MySQLdb) installed.
-#    Rewrite ALL mysql:// variants to use PyMySQL (listed in requirements.txt).
-import re as _re
-DATABASE_URL = _re.sub(
-    r"^mysql(\+[^:]+)?://",
-    "mysql+pymysql://",
-    DATABASE_URL,
-)
-
-# 2. PostgreSQL: SQLAlchemy 2.x dropped support for the legacy "postgres://" scheme.
-#    Render/Supabase may still provide it, so normalise to "postgresql://".
+# Render's PostgreSQL URL starts with "postgres://" but SQLAlchemy 2.x
+# requires "postgresql://". Fix it automatically.
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# ── SQLite extra args ──────────────────────────────────────────────────────────
-# SQLite needs check_same_thread=False for FastAPI async usage
-connect_args = {}
-if DATABASE_URL.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
+# SQLite needs an extra argument for FastAPI async usage.
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
 
@@ -40,7 +28,7 @@ Base = declarative_base()
 
 
 def get_db():
-    """Dependency to get DB session for FastAPI endpoints."""
+    """FastAPI dependency – yields a DB session and closes it after use."""
     db = SessionLocal()
     try:
         yield db
