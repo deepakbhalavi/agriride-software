@@ -1,32 +1,39 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { matchingAPI, bookingAPI } from '../../api'
+import { matchingAPI, bookingAPI, tripAPI } from '../../api'
 import StatusBadge from '../../components/StatusBadge'
 import RouteVisualization from '../../components/RouteVisualization'
 
 export default function FindSharedTransport() {
-  const [bookings, setBookings]   = useState([])
-  const [results, setResults]     = useState(null)
-  const [running, setRunning]     = useState(false)
-  const [creating, setCreating]   = useState(false)
-  const [error, setError]         = useState('')
-  const [created, setCreated]     = useState(null)
+  const [bookings, setBookings]           = useState([])
+  const [allBookings, setAllBookings]     = useState([])
+  const [results, setResults]             = useState(null)
+  const [running, setRunning]             = useState(false)
+  const [creating, setCreating]           = useState(null) // stores groupIdx being created
+  const [error, setError]                 = useState('')
+  const [created, setCreated]             = useState(null)
+  const [existingTrips, setExistingTrips] = useState([])
   const navigate = useNavigate()
 
-  useEffect(() => {
+  const reload = () => {
     bookingAPI.getMy().then(r => {
-      const pending = r.data.filter(b => b.status === 'REQUESTED')
-      setBookings(pending)
+      setAllBookings(r.data)
+      setBookings(r.data.filter(b => b.status === 'REQUESTED'))
     })
-  }, [])
+    tripAPI.getAll().then(r => setExistingTrips(r.data)).catch(() => {})
+  }
+
+  useEffect(() => { reload() }, [])
 
   const runMatching = async () => {
     setRunning(true)
     setError('')
     setResults(null)
+    setCreated(null)
     try {
       const res = await matchingAPI.run()
       setResults(res.data)
+      reload() // refresh booking statuses after matching
     } catch (err) {
       setError(err.response?.data?.detail || 'Matching failed')
     } finally {
@@ -35,16 +42,24 @@ export default function FindSharedTransport() {
   }
 
   const createTrip = async (groupIdx, bookingIds) => {
-    setCreating(true)
+    setCreating(groupIdx)
+    setError('')
     try {
       const res = await matchingAPI.createTrip(groupIdx, bookingIds)
       setCreated(res.data.trip_id)
+      reload() // refresh booking statuses after trip creation
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create shared trip')
+      const msg = err.response?.data?.detail || 'Failed to create shared trip'
+      if (msg.includes('Need at least 2')) {
+        setError('✅ These bookings are already matched! The system auto-matched them when bookings were created. Check "My Bookings" to see the shared trip status.')
+      } else {
+        setError(msg)
+      }
     } finally {
-      setCreating(false)
+      setCreating(null)
     }
   }
+
 
   return (
     <div>
@@ -61,19 +76,39 @@ export default function FindSharedTransport() {
         group farmers by destination compatibility, geographic proximity, time window overlap, and vehicle capacity.
       </div>
 
-      {/* Pending Bookings */}
-      {bookings.length > 0 && (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h3 style={{ marginBottom: 12 }}>Your Pending Bookings ({bookings.length})</h3>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {/* Booking Status Summary */}
+      <div className="card" style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          <div>
+            <div className="stat-label">Your Pending Bookings</div>
+            <div className="stat-value" style={{ fontSize: '1.8rem', color: 'var(--color-warning)' }}>{bookings.length}</div>
+          </div>
+          <div>
+            <div className="stat-label">Already Matched</div>
+            <div className="stat-value" style={{ fontSize: '1.8rem', color: 'var(--color-success)' }}>
+              {allBookings.filter(b => ['MATCHED','DRIVER_ASSIGNED','DRIVER_ACCEPTED','PICKUP_IN_PROGRESS','IN_TRANSIT'].includes(b.status)).length}
+            </div>
+          </div>
+          <div>
+            <div className="stat-label">Your Active Shared Trips</div>
+            <div className="stat-value" style={{ fontSize: '1.8rem', color: 'var(--color-primary-light)' }}>{existingTrips.length}</div>
+          </div>
+        </div>
+        {bookings.length === 0 && allBookings.length > 0 && (
+          <div className="alert alert-success" style={{ marginTop: 16, marginBottom: 0 }}>
+            ✅ All your bookings are already matched to shared trips! Check <strong>My Bookings</strong> for status.
+          </div>
+        )}
+        {bookings.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
             {bookings.map(b => (
               <div key={b.id} className="tag">
                 #{b.id} · {b.quantity_kg}kg {b.produce_type} → {b.destination_name}
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Run Button */}
       <div className="card" style={{ marginBottom: 24, textAlign: 'center' }}>
@@ -85,7 +120,7 @@ export default function FindSharedTransport() {
         {error && <div className="alert alert-danger" style={{ marginBottom: 16 }}>⚠️ {error}</div>}
         {created && (
           <div className="alert alert-success" style={{ marginBottom: 16 }}>
-            ✅ Shared Trip #{created} created! Check your bookings for updates.
+            ✅ Shared Trip #{created} created! <button className="btn btn-sm btn-secondary" style={{marginLeft:8}} onClick={() => navigate('/farmer/bookings')}>View My Bookings →</button>
           </div>
         )}
         <button
@@ -124,7 +159,7 @@ export default function FindSharedTransport() {
           </div>
 
           {results.matched_groups?.map((grp, idx) => (
-            <MatchGroup key={idx} grp={grp} idx={idx} onCreateTrip={createTrip} creating={creating} />
+            <MatchGroup key={idx} grp={grp} idx={idx} onCreateTrip={createTrip} creating={creating === idx} />
           ))}
 
           {results.unmatched_booking_ids?.length > 0 && (
@@ -286,14 +321,27 @@ function MatchGroup({ grp, idx, onCreateTrip, creating }) {
 
           {/* Create Trip Button */}
           {isMatched && grp.capacity_ok && (
-            <button
-              id={`create-trip-btn-${idx}`}
-              className="btn btn-primary btn-lg w-full"
-              onClick={() => onCreateTrip(idx, grp.booking_ids)}
-              disabled={creating}
-            >
-              {creating ? <><span className="spinner" style={{ width: 18, height: 18 }} /> Creating Trip...</> : '🚛 Create Shared Trip & Notify Driver'}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button
+                id={`create-trip-btn-${idx}`}
+                className="btn btn-primary btn-lg w-full"
+                onClick={() => onCreateTrip(idx, grp.booking_ids)}
+                disabled={creating}
+                style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', border: 'none' }}
+              >
+                {creating
+                  ? <><span className="spinner" style={{ width: 18, height: 18 }} /> Creating Trip...</>
+                  : '🚛 Create Shared Trip & Notify Driver'}
+              </button>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                ⚡ Note: If bookings were auto-matched when created, this trip may already exist.
+              </div>
+            </div>
+          )}
+          {!isMatched && grp.capacity_ok && (
+            <div className="alert" style={{ background: 'rgba(245,158,11,0.1)', borderColor: 'rgba(245,158,11,0.3)', marginTop: 8 }}>
+              ⚠️ <strong>Partially Matched</strong> — Time windows may not fully overlap. Manual review recommended.
+            </div>
           )}
         </>
       )}
