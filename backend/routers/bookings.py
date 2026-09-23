@@ -41,12 +41,26 @@ def create_booking(
     db.commit()
     db.refresh(booking)
 
-    # Create notification for farmer
+    # Notify farmer that their booking was received
     create_notification(
         db, current_user.id, "BOOKING_CREATED", related_id=booking.id,
         qty=booking.quantity_kg, produce=booking.produce_type
     )
+
+    # ── Auto-matching ──────────────────────────────────────────
+    # Run the matching engine immediately. If this booking forms a
+    # compatible group with existing bookings, create the SharedTrip
+    # automatically so the driver sees it right away.
+    try:
+        from services.trip_creator import try_auto_match_and_create
+        try_auto_match_and_create(db, booking)
+    except Exception:
+        # Auto-match is best-effort — never fail the booking creation
+        pass
+
+    db.refresh(booking)  # Refresh to pick up any status change from auto-match
     return booking
+
 
 
 @router.get("", response_model=List[schemas.BookingOut])
@@ -116,7 +130,7 @@ def cancel_booking(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role("FARMER"))
 ):
-    """Cancel a booking before it is confirmed."""
+    """Cancel a booking before it is matched or confirmed."""
     farmer = db.query(models.Farmer).filter(models.Farmer.user_id == current_user.id).first()
     booking = db.query(models.Booking).filter(
         models.Booking.id == booking_id,
@@ -124,9 +138,36 @@ def cancel_booking(
     ).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    if booking.status in [models.BookingStatus.IN_TRANSIT, models.BookingStatus.DELIVERED]:
-        raise HTTPException(status_code=400, detail="Cannot cancel a trip already in transit or delivered")
+
+    # Block cancellation once the booking is matched or assigned to a driver
+    non_cancellable = [
+        models.BookingStatus.MATCHED,
+        models.BookingStatus.DRIVER_ASSIGNED,
+        models.BookingStatus.DRIVER_ACCEPTED,
+        models.BookingStatus.PICKUP_IN_PROGRESS,
+        models.BookingStatus.IN_TRANSIT,
+        models.BookingStatus.DELIVERED,
+    ]
+    if booking.status in non_cancellable:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot cancel a booking with status '{booking.status.value}'. "
+                   f"The trip has already been matched or a driver has been assigned. "
+                   f"Please contact support if you need to cancel."
+        )
 
     booking.status = models.BookingStatus.CANCELLED
     db.commit()
+
+    # If this booking was somehow part of a shared trip (edge case: MATCHED
+    # status would have been caught above, but safety check), notify the driver.
+    for tb in booking.trip_bookings:
+        shared_trip = tb.shared_trip
+        if shared_trip and shared_trip.driver:
+            create_notification(
+                db, shared_trip.driver.user_id, "DRIVER_REJECTED",
+                related_id=shared_trip.id,
+            )
+
     return {"message": "Booking cancelled successfully"}
+

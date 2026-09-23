@@ -32,16 +32,8 @@ def get_unread_count(
     return {"count": count}
 
 
-@router.put("/{notif_id}/read")
-def mark_notification_read(
-    notif_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    success = mark_read(db, notif_id, current_user.id)
-    return {"success": success}
-
-
+# NOTE: /mark-all-read MUST be defined before /{notif_id}/read
+# Otherwise FastAPI will try to parse "mark-all-read" as an integer
 @router.put("/mark-all-read")
 def mark_all_read(
     db: Session = Depends(get_db),
@@ -53,3 +45,13 @@ def mark_all_read(
     ).update({"is_read": True})
     db.commit()
     return {"message": "All notifications marked as read"}
+
+
+@router.put("/{notif_id}/read")
+def mark_notification_read(
+    notif_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    success = mark_read(db, notif_id, current_user.id)
+    return {"success": success}

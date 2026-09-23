@@ -89,6 +89,7 @@ export const tripAPI = {
 export const paymentAPI = {
   initiate:    (data)     => api.post('/api/payments', data),
   process:     (id)       => api.post(`/api/payments/${id}/process`),
+  getMy:       ()         => api.get('/api/payments/my'),
   getById:     (id)       => api.get(`/api/payments/${id}`),
   getByBooking: (bid)     => api.get(`/api/payments/booking/${bid}`),
 }

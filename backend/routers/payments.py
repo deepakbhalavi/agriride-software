@@ -73,6 +73,26 @@ def process_payment(
     return payment
 
 
+@router.get("/my")
+def get_my_payments(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role("FARMER"))
+):
+    """Get all payments for the current farmer's bookings."""
+    from typing import List
+    farmer = db.query(models.Farmer).filter(models.Farmer.user_id == current_user.id).first()
+    if not farmer:
+        return []
+    # Get all booking IDs for this farmer
+    booking_ids = [
+        b.id for b in db.query(models.Booking).filter(models.Booking.farmer_id == farmer.id).all()
+    ]
+    payments = db.query(models.Payment).filter(
+        models.Payment.booking_id.in_(booking_ids)
+    ).order_by(models.Payment.created_at.desc()).all()
+    return payments
+
+
 @router.get("/{payment_id}", response_model=schemas.PaymentOut)
 def get_payment(
     payment_id: int,

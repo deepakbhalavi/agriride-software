@@ -19,13 +19,27 @@ export default function FarmerProfile() {
     e.preventDefault()
     setSaving(true)
     try {
-      const r = await farmerAPI.updateProfile(form)
+      // Only send fields accepted by FarmerProfileUpdate schema
+      // (strip read-only fields like id, user_id, email, created_at)
+      const payload = {
+        farm_name:     form.farm_name     || null,
+        address:       form.address       || null,
+        city:          form.city          || null,
+        state:         form.state         || null,
+        pincode:       form.pincode       || null,
+        latitude:      form.latitude  !== '' && form.latitude  != null ? parseFloat(form.latitude)  : null,
+        longitude:     form.longitude !== '' && form.longitude != null ? parseFloat(form.longitude) : null,
+        location_name: form.location_name || null,
+        full_name:     form.full_name     || null,
+        phone:         form.phone         || null,
+      }
+      const r = await farmerAPI.updateProfile(payload)
       setProfile(r.data)
       setEditing(false)
       setMsg('Profile updated successfully!')
       setTimeout(() => setMsg(''), 3000)
     } catch (err) {
-      setMsg('Update failed: ' + (err.response?.data?.detail || 'Error'))
+      setMsg('Update failed: ' + (err.response?.data?.detail || JSON.stringify(err.response?.data) || 'Error'))
     } finally {
       setSaving(false)
     }
@@ -90,11 +104,11 @@ export default function FarmerProfile() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Latitude</label>
-                  <input type="number" step="any" className="form-input" value={form.latitude || ''} onChange={e => setForm(p => ({ ...p, latitude: e.target.value }))} />
+                  <input type="number" step="any" className="form-input" value={form.latitude ?? ''} onChange={e => setForm(p => ({ ...p, latitude: e.target.value }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Longitude</label>
-                  <input type="number" step="any" className="form-input" value={form.longitude || ''} onChange={e => setForm(p => ({ ...p, longitude: e.target.value }))} />
+                  <input type="number" step="any" className="form-input" value={form.longitude ?? ''} onChange={e => setForm(p => ({ ...p, longitude: e.target.value }))} />
                 </div>
               </div>
               <div className="form-row">
